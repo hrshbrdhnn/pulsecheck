@@ -63,7 +63,17 @@ const chartOptions = ref({
     tooltip: {
         theme: 'dark',
         x: {
-            format: 'dd MMM yyyy'
+            format: 'dd MMM yyyy HH:mm:ss'
+        },
+        y: {
+            title: {
+                formatter: function (seriesName) {
+                    return seriesName;
+                }
+            },
+            formatter: function (val) {
+                return val + " ms";
+            }
         }
     },
     fill: {
@@ -96,6 +106,7 @@ const fetchData = async (id) => {
 
         // Update the series with the fetched data
         series.value = [{
+            name: 'Ping',
             data: formattedData
         }];
     } catch (error) {

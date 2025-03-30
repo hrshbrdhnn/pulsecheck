@@ -37,10 +37,17 @@ const mailTemplate = (monitorStatus, monitorName, monitorUrl, monitorResponse) =
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <style>
-                .email-wrapper {
+                .up-email-wrapper {
                     font-family: Arial, sans-serif;
                     color: #333;
-                    background-color: #f4f4f4;
+                    background-color: #008000;
+                    margin: 0;
+                    padding: 10px;
+                }
+                .down-email-wrapper {
+                    font-family: Arial, sans-serif;
+                    color: #333;
+                    background-color: #ED2100;
                     margin: 0;
                     padding: 10px;
                 }
@@ -61,10 +68,10 @@ const mailTemplate = (monitorStatus, monitorName, monitorUrl, monitorResponse) =
                     line-height: 1.6;
                 }
                 .status-up {
-                    color: green;
+                    color: #008000;;
                 }
                 .status-down {
-                    color: red;
+                    color: #ED2100;
                 }
                 .link {
                     color: #3498db;
@@ -79,7 +86,7 @@ const mailTemplate = (monitorStatus, monitorName, monitorUrl, monitorResponse) =
             </style>
         </head>
         <body>
-            <div class="email-wrapper">
+            <div class="${monitorStatus==='UP' ? 'up-email-wrapper' : 'down-email-wrapper'}">
                 <div class="email-container">
                     <h2>Monitor Status Alert</h2>
                     <p>Dear Team,</p>

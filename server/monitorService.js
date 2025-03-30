@@ -96,7 +96,17 @@ const checkMonitor = async (monitor, io) => {
         clearTimeout(timeoutId);
 
         const timestamp = dayjs().format("YYYY-MM-DD HH:mm:ss.SSS");
-        const errorMessage = error.message;
+        let errorMessage = error.message;
+        if (error.response) {
+            // Response error (non-2xx status)
+            errorMessage = `HTTP Error: ${error.response.status} - ${error.response.statusText}`;
+        } else if (error.request) {
+            // Network error (no response)
+            errorMessage = "Network Error: No response received";
+        } else {
+            // Other errors (e.g., timeout, setup issues)
+            errorMessage = error.message;
+        }
 
         // Increment down count since the request failed
         let downCount = (previousBeat?.down_count || 0) + 1;

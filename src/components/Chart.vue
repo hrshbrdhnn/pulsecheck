@@ -44,6 +44,7 @@ const chartOptions = ref({
     stroke: {
         show: true,
         width: 2,
+        colors: ['#00a63e'], // Green stroke color
     },
     grid: {
         show: true,
@@ -59,9 +60,18 @@ const chartOptions = ref({
     xaxis: {
         type: 'datetime',
         tickAmount: 6,
+        // axisBorder: {
+        //     show: true,
+        //     color: '#00a63e',
+        //     height: 1,
+        //     width: '100%',
+        //     offsetX: 0,
+        //     offsetY: 0
+        // },
     },
     tooltip: {
         theme: 'dark',
+        fillSeriesColor: true,
         x: {
             format: 'dd MMM yyyy HH:mm:ss'
         },
@@ -83,7 +93,19 @@ const chartOptions = ref({
             shadeIntensity: 1,
             opacityFrom: 0.7,
             opacityTo: 0.9,
-            stops: [0, 100]
+            stops: [0, 100],
+            colorStops: [
+                {
+                    offset: 0,
+                    color: '#00a63e', // Green gradient start
+                    opacity: 1
+                },
+                {
+                    offset: 100,
+                    color: '#00a63e', // Green gradient end
+                    opacity: 0.1
+                }
+            ]
         },
     },
 });
@@ -107,7 +129,8 @@ const fetchData = async (id) => {
         // Update the series with the fetched data
         series.value = [{
             name: 'Ping',
-            data: formattedData
+            data: formattedData,
+            color: "#00a63e"
         }];
     } catch (error) {
         console.error('Error fetching data:', error);

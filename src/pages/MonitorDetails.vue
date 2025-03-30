@@ -1,6 +1,6 @@
 <template>
   <div class="container" id="monitor-details">
-    <div class="flex flex-col space-y-2">
+    <div class="flex flex-col space-y-3">
       <div v-if="monitor">
         <div class="flex items-center gap-3 justify-between">
           <div>

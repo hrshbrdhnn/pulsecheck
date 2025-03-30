@@ -123,7 +123,8 @@ const fetchData = async (id) => {
         const data = response.data.heartbeatGraph; // Assume data is in the format [{ time: timestamp, value: number }]
         console.log('Fetched data:', data);
         const formattedData = data.map(item => {
-            return [new Date(item.time).getTime(), item.ping]
+            // If ping is 0, we assign null so that it can be handled differently in the chart
+            return [new Date(item.time).getTime(), item.ping === 0 ? null : item.ping]
         });
 
         // Update the series with the fetched data

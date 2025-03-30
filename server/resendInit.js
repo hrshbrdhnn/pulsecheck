@@ -6,18 +6,12 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 console.log(resend);
 
 const sendMail = async (monitorStatus, monitorName, monitorUrl, monitorResponse) => {
-    console.log(monitorStatus, monitorName, monitorUrl, monitorResponse);
     const { data, error } = await resend.emails.send({
         from: 'Alert <alert@nyxcloud.cloud>',
         to: ['monkmind8@gmail.com'],
         subject: `${monitorStatus === 'UP' ? `${monitorName} Is Back Up - All Systems Normal` : `${monitorName} Is Down - Urgent Action Required`}`,
         html: mailTemplate(monitorStatus, monitorName, monitorUrl, monitorResponse),
     });
-
-    // Monitor URL
-    // Monitor Name
-    // Up or down
-    // Basic message for down and all 
 
     if (error) {
         ErrorTable.create({
@@ -26,8 +20,6 @@ const sendMail = async (monitorStatus, monitorName, monitorUrl, monitorResponse)
         });
         return console.error({ error });
     }
-
-    console.log({ data });
 }
 
 const mailTemplate = (monitorStatus, monitorName, monitorUrl, monitorResponse) => {

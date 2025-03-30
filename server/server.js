@@ -62,6 +62,7 @@ app.post('/api/monitors', async (req, res) => {
         io.emit('monitor-added', monitor);
         // Immediately start monitoring the new monitor
         startMonitor(monitor, io);
+        fetchTLSInfoOnceIfNeeded(monitor);
         // TODO: Add TLS Fetch
         res.status(201).json({ monitor });
     } catch (err) {

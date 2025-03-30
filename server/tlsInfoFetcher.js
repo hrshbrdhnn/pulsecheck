@@ -148,38 +148,21 @@ const scheduleTLSFetch = () => {
 //     });
 // };
 
-const fetchTLSInfoOnceIfNeeded = async () => {
+const fetchTLSInfoOnceIfNeeded = async (monitor) => {
     try {
-        const monitors = await Monitor.findAll(); // Use await for async call
-        for (const monitor of monitors) {
-            const existingInfo = await MonitorTlsInfo.findOne({
-                where: { monitor_id: monitor.id }
-            });
-
-            // If TLS info exists for this monitor, delete it
-            if (existingInfo) {
-                console.log(`Deleting existing TLS info for monitor_id: ${monitor.id}`);
-                await MonitorTlsInfo.destroy({
-                    where: { monitor_id: monitor.id }
+        fetchTLSInfo(monitor.url, 443, (err, result) => {
+            if (err) {
+                ErrorTable.create({
+                    table_name: 'monitor_tls_info',
+                    err_text: err.message
+                });
+            } else {
+                MonitorTlsInfo.create({
+                    monitor_id: monitor.id,
+                    info_json: JSON.stringify(result)
                 });
             }
-
-            // Fetch new TLS info since the existing info has been deleted or doesn't exist
-            console.log(`Fetching new TLS info for monitor_id: ${monitor.id}`);
-            fetchTLSInfo(monitor.url, 443, (err, result) => {
-                if (err) {
-                    ErrorTable.create({
-                        table_name: 'monitor_tls_info',
-                        err_text: err.message
-                    });
-                } else {
-                    MonitorTlsInfo.create({
-                        monitor_id: monitor.id,
-                        info_json: JSON.stringify(result)
-                    });
-                }
-            });
-        }
+        });
     } catch (err) {
         console.error('Error checking monitors for TLS info:', err);
     }

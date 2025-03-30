@@ -1,6 +1,7 @@
 const axios = require("axios");
 const { Monitor, Heartbeat, MonitorTlsInfo, ErrorTable } = require("./database");
 const dayjs = require("dayjs");
+const { sendMail } = require("./resendInit");
 
 const STATUS = {
     UP: "up",
@@ -91,6 +92,10 @@ const checkMonitor = async (monitor, io) => {
             timestamp,
         });
 
+        if(isImportant){
+            sendMail((currentStatus.toUpperCase()), monitor.name, monitor.url, statusMessage)
+        }
+
         return { status: currentStatusNumeric, responseTime: Date.now() - startTime };
     } catch (error) {
         clearTimeout(timeoutId);
@@ -99,7 +104,7 @@ const checkMonitor = async (monitor, io) => {
         let errorMessage = error.message;
         if (error.response) {
             // Response error (non-2xx status)
-            errorMessage = `HTTP Error: ${error.response.status} - ${error.response.statusText}`;
+            errorMessage = `${error.response.status} - ${error.response.statusText}`;
         } else if (error.request) {
             // Network error (no response)
             errorMessage = "Network Error: No response received";
@@ -133,6 +138,10 @@ const checkMonitor = async (monitor, io) => {
             ping: 0,
             timestamp,
         });
+
+        if(isImportant){
+            sendMail('DOWN', monitor.name, monitor.url, errorMessage)
+        }
 
         return { status: 0, error: errorMessage };
     }

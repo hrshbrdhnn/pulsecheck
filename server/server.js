@@ -8,7 +8,6 @@ const { scheduleTLSFetch, fetchTLSInfo, fetchTLSInfoOnceIfNeeded } = require('./
 const { sequelize } = require('./database');
 const { Op } = require('sequelize');
 const cors = require('cors');
-const { Certificate } = require('crypto');
 
 const app = express();
 const PORT = process.env.PORT || 3002;
@@ -42,7 +41,7 @@ app.get('/api/monitor/:id', async (req, res) => {
         // Fetch the monitor with the given ID from the database
         const monitor = await Monitor.findByPk(monitorId);
         const monitorCertificate = await MonitorTlsInfo.findOne({
-            where: { monitor_id: monitorId }, 
+            where: { monitor_id: monitorId },
         });
 
         if (monitor && monitorCertificate) {
@@ -63,7 +62,6 @@ app.post('/api/monitors', async (req, res) => {
         // Immediately start monitoring the new monitor
         startMonitor(monitor, io);
         fetchTLSInfoOnceIfNeeded(monitor);
-        // TODO: Add TLS Fetch
         res.status(201).json({ monitor });
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -183,7 +181,6 @@ server.listen(PORT, async () => {
     console.log(`Server is running on http://localhost:${PORT}`);
     startMonitoring(io);
     scheduleTLSFetch();
-    // fetchTLSInfoOnceIfNeeded();
 
     // fetchTLSInfo("https://google.com", 443, (err, result) => {
     //     if (err) {

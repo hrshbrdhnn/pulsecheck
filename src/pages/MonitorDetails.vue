@@ -9,10 +9,22 @@
           </div>
           <div class="flex items-center gap-2 flex-row">
             <button class="hover:bg-secondary p-2 rounded-md border border-input cursor-pointer" title="Edit">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
-                stroke="currentColor" class="size-5">
-                <path stroke-linecap="round" stroke-linejoin="round"
-                  d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
+              <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="#fff" class="size-5">
+                <g id="SVGRepo_bgCarrier" stroke-width="0"></g>
+                <g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g>
+                <g id="SVGRepo_iconCarrier">
+                  <title></title>
+                  <g id="Complete">
+                    <g id="edit">
+                      <g>
+                        <path d="M20,16v4a2,2,0,0,1-2,2H4a2,2,0,0,1-2-2V6A2,2,0,0,1,4,4H8" fill="none" stroke="currentColor"
+                          stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"></path>
+                        <polygon fill="none" points="12.5 15.8 22 6.2 17.8 2 8.3 11.5 8 16 12.5 15.8" stroke="currentColor"
+                          stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"></polygon>
+                      </g>
+                    </g>
+                  </g>
+                </g>
               </svg>
             </button>
             <button class="p-2 rounded-md border border-input cursor-pointer bg-red-800 hover:bg-red-600 transition"
@@ -86,7 +98,7 @@
 
 <script setup>
 import { ref, watch, onMounted, defineEmits, reactive, defineProps } from 'vue';
-import { useRoute, useRouter } from 'vue-router'; 
+import { useRoute, useRouter } from 'vue-router';
 import axios from 'axios';
 import CertificateInfo from '../components/CertificateInfo/CertificateInfo.vue';
 import dayjs from 'dayjs';
@@ -123,10 +135,10 @@ const fetchMonitorDetails = async (id) => {
 };
 
 const fetchHeartbeatDetails = async (id) => {
-  heartbeatSummary.length = 0;  
+  heartbeatSummary.length = 0;
   try {
     const response = await axios.get(`/api/heartbeat/${id}`);
-    heartbeatSummary.push(...response.data.heartbeatSummary); 
+    heartbeatSummary.push(...response.data.heartbeatSummary);
   } catch (error) {
     console.error('Error fetching heartbeat details:', error);
   }

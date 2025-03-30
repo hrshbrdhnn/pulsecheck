@@ -83,8 +83,8 @@ onMounted(() => {
             </button>
         </div>
         <!-- List Items -->
-        <div>
-            <div v-for="monitor in filteredMonitors" :key="monitor.id">
+        <div class="space-y-1">
+            <div v-for="monitor in filteredMonitors" :key="monitor.id" >
                 <MonitorListItem :monitorStatus="monitorStatus" :monitor="monitor" :selectMode="selectMode" />
             </div>
         </div>

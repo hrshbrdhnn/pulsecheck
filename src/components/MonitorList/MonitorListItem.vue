@@ -18,7 +18,7 @@ const props = defineProps({
 </script>
 
 <template>
-    <router-link :to="`/${monitor.id}`" class="flex items-center p-2 justify-between rounded-md hover:bg-secondary">
+    <router-link :to="`/${monitor.id}`" class="flex items-center p-2 justify-between rounded-md hover:bg-secondary" exact-active-class="bg-secondary">
         <div class="flex items-center gap-3">
             <span class="flex h-4 w-4 rounded-full"
                 :class="monitorStatus[monitor.id] === 'up' ? 'bg-green-600' : monitorStatus[monitor.id] === 'down' ? 'bg-red-600' : 'bg-secondary loadingpulse'"></span>

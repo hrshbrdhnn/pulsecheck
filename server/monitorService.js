@@ -34,7 +34,7 @@ const checkMonitor = async (monitor, io) => {
         const startTime = Date.now();
 
         const isFirstBeat = !previousBeat;
-        const previousStatus = previousBeat ? previousBeat.status : null;
+        const previousStatus = previousBeat ? (previousBeat.status ? STATUS.UP : STATUS.DOWN) : null;
         let downCount = previousBeat ? previousBeat.down_count || 0 : 0;
 
         // Create a timeout controller
@@ -107,13 +107,15 @@ const checkMonitor = async (monitor, io) => {
             // Other errors (e.g., timeout, setup issues)
             errorMessage = error.message;
         }
-
+        const isFirstBeat = !previousBeat;
+        const previousStatus = previousBeat ? (previousBeat.status ? STATUS.UP : STATUS.DOWN) : null;
+        const isImportant = isImportantBeat(isFirstBeat, previousStatus, 'down');
         // Increment down count since the request failed
         let downCount = (previousBeat?.down_count || 0) + 1;
 
         // Store failure in database
         await Heartbeat.create({
-            important: 0,
+            important: isImportant,
             monitor_id: monitor.id,
             status: 0, // DOWN
             msg: errorMessage,

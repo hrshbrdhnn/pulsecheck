@@ -46,3 +46,7 @@ PulseCheck is an advanced website monitoring application designed to track the u
 4. Track SSL certificate expiration dates.
 
 ## Screenshots
+<img width="1470" height="806" alt="image" src="https://github.com/user-attachments/assets/8a2cf89f-46a7-4971-b711-1924ee546d29" />
+<img width="1470" height="807" alt="image" src="https://github.com/user-attachments/assets/300fcae3-ca1b-4bbc-8910-d8c5f81a1b74" />
+<img width="1470" height="807" alt="image" src="https://github.com/user-attachments/assets/053f757d-60c2-4370-aa92-a3f8b031361c" />
+<img width="1470" height="806" alt="image" src="https://github.com/user-attachments/assets/51d8db24-c774-4297-be96-61d39a23c9d4" />

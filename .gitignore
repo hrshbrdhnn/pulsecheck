@@ -1,0 +1,53 @@
+# Dependencies
+node_modules/
+jspm_packages/
+web_modules/
+
+# Production builds
+dist/
+build/
+out/
+.vite/
+
+# Local configuration files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+backend/.env
+
+# macOS system files
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Python virtual environments
+venv/
+.venv/
+env/
+ENV/
+
+# Python compiled files and test caches
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Local databases
+backend/database/db.sqlite
+*.sqlite
+*.sqlite3
+*.db
+
+# IDE configurations
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp

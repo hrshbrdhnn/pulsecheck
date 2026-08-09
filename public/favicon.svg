@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <!-- Defs for filter glows -->
+  <defs>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="14" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+
+  <!-- Glowing Heart-Monitor Base -->
+  <g filter="url(#glow)">
+    <!-- Monitor Outer Body -->
+    <rect x="64" y="64" width="384" height="288" rx="40" fill="none" stroke="#00e55b" stroke-width="26" stroke-linejoin="round" />
+    
+    <!-- Monitor Stand Base -->
+    <path d="M192 352 L176 432 L336 432 L320 352" fill="none" stroke="#00e55b" stroke-width="26" stroke-linejoin="round" stroke-linecap="round" />
+    <line x1="128" y1="432" x2="384" y2="432" stroke="#00e55b" stroke-width="26" stroke-linecap="round" />
+
+    <!-- EKG Heartbeat Pulse Path across screen -->
+    <path d="M112 208 L170 208 L192 134 L216 282 L248 96 L280 234 L298 208 L400 208" 
+          fill="none" stroke="#00e55b" stroke-width="26" stroke-linecap="round" stroke-linejoin="round" />
+          
+    <!-- Small glowing pulse dot on the line -->
+    <circle cx="400" cy="208" r="14" fill="#ffffff" />
+  </g>
+</svg>

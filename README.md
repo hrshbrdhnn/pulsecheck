@@ -81,10 +81,16 @@ DB_NAME=pulsecheck
 # APP_NAME=PulseCheck
 # SUPPORT_EMAIL=support@pulsecheck.watch
 # ALERT_FROM_EMAIL=Alert <alert@pulsecheck.watch>
+# GLOBAL_ADMIN_EMAIL=monitoralerts@pulsecheck.watch
 ```
 
 > [!NOTE]
-> Global configurations (such as branding names, support contact points, alert dispatchers, and default recipient fallback email addresses) are stored in the `app_config` database table. You can configure these keys (`app_name`, `support_email`, `alert_from_email`, `default_email_addresses`) directly inside the database. If a key is empty or not configured, it will securely check the corresponding environment variable fallback inside the `backend/.env` file.
+> [!NOTE]
+> Global configurations (such as branding names, support contact points, alert dispatchers, and default recipient fallback email addresses) are stored in the `app_config` database table for runtime dynamicity.
+> 
+> On startup, the backend automatically seeds and synchronizes these values from the corresponding environment variables inside `backend/.env` (`APP_NAME`, `SUPPORT_EMAIL`, `ALERT_FROM_EMAIL`, `GLOBAL_ADMIN_EMAIL`) if the database rows do not exist or are currently blank/empty.
+> 
+> If any required configuration keys are still missing from both the database and the environment variables, the backend will print a critical startup warning in red and terminate execution immediately to prevent configuration errors.
 
 ---
 
@@ -140,5 +146,6 @@ DB_NAME=pulsecheck
 
 ## TODO
 - [ ] Test every scenario thoroughly. Especially related to environment file, global config table and email notification.
+- [ ] Review Database Schema.
 - [ ] Work on other types of notification integration.
 - [ ] Work on other types of monitoring integration.

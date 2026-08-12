@@ -148,3 +148,4 @@ DB_NAME=pulsecheck
 - [ ] Review Database Schema.
 - [ ] Work on other types of notification integration.
 - [ ] Work on other types of monitoring integration.
+- [ ] Check for responsiveness.

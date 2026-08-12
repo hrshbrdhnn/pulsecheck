@@ -85,7 +85,6 @@ DB_NAME=pulsecheck
 ```
 
 > [!NOTE]
-> [!NOTE]
 > Global configurations (such as branding names, support contact points, alert dispatchers, and default recipient fallback email addresses) are stored in the `app_config` database table for runtime dynamicity.
 > 
 > On startup, the backend automatically seeds and synchronizes these values from the corresponding environment variables inside `backend/.env` (`APP_NAME`, `SUPPORT_EMAIL`, `ALERT_FROM_EMAIL`, `GLOBAL_ADMIN_EMAIL`) if the database rows do not exist or are currently blank/empty.

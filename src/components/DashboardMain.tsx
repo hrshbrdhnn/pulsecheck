@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
-import { Monitor, formatUtcToLocal, filterLastGoodAndBad } from '../types';
+import { Monitor, formatUtcToLocal, filterLastGoodAndBad, AIDiagnosis } from '../types';
 import { MonitorChart } from './MonitorChart';
+import { AIDiagnosisModal } from './AIDiagnosisModal';
+import { Sparkles } from 'lucide-react';
 
 interface DashboardMainProps {
   monitor: Monitor;
@@ -20,6 +22,10 @@ export const DashboardMain: React.FC<DashboardMainProps> = ({
   onOpenCertModal,
 }) => {
   const [isTesting, setIsTesting] = useState(false);
+  const [isDiagnosisOpen, setIsDiagnosisOpen] = useState(false);
+  const [diagnosisData, setDiagnosisData] = useState<AIDiagnosis | null>(null);
+  const [diagnosisLoading, setDiagnosisLoading] = useState(false);
+  const [diagnosisError, setDiagnosisError] = useState<string | null>(null);
 
   const handleTestNow = () => {
     setIsTesting(true);
@@ -27,6 +33,26 @@ export const DashboardMain: React.FC<DashboardMainProps> = ({
     setTimeout(() => {
       setIsTesting(false);
     }, 600);
+  };
+
+  const handleFetchDiagnosis = async () => {
+    setIsDiagnosisOpen(true);
+    setDiagnosisLoading(true);
+    setDiagnosisError(null);
+    try {
+      const idStr = String(monitor.id).replace('mon-', '');
+      const res = await fetch(`/api/monitors/${idStr}/ai-diagnosis`, { method: 'POST' });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.detail || 'Failed to fetch AI diagnosis');
+      }
+      const data = await res.json();
+      setDiagnosisData(data);
+    } catch (err: any) {
+      setDiagnosisError(err.message || 'Error generating AI diagnosis');
+    } finally {
+      setDiagnosisLoading(false);
+    }
   };
 
   return (
@@ -76,6 +102,18 @@ export const DashboardMain: React.FC<DashboardMainProps> = ({
 
           {/* Action Buttons */}
           <div className="flex items-center gap-2">
+            {(monitor.status === 'down' || monitor.status === 'degraded') && (
+              <button
+                id="monitor-ai-diagnosis-btn"
+                onClick={handleFetchDiagnosis}
+                className="h-9 px-3 rounded-md border border-amber-500/40 bg-gradient-to-r from-amber-500/20 to-rose-500/20 hover:from-amber-500/30 hover:to-rose-500/30 text-amber-300 hover:text-white transition-all flex items-center justify-center gap-1.5 text-xs font-mono-code flex-shrink-0 font-medium shadow-lg shadow-amber-500/10"
+                title="Generate AI Outage Diagnosis"
+              >
+                <Sparkles className="w-4 h-4 text-amber-400 animate-pulse" />
+                <span>AI Diagnosis</span>
+              </button>
+            )}
+
             <button
               id="monitor-run-test-btn"
               onClick={handleTestNow}
@@ -245,6 +283,16 @@ export const DashboardMain: React.FC<DashboardMainProps> = ({
                             On-Demand
                           </span>
                         )}
+                        {(hb.status === 'down' || hb.status === 'degraded') && (
+                          <button
+                            onClick={handleFetchDiagnosis}
+                            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-500/10 border border-amber-500/30 text-amber-300 hover:text-white hover:bg-amber-500/20 transition-all font-mono-code"
+                            title="Diagnose Outage"
+                          >
+                            <Sparkles className="w-3 h-3 text-amber-400" />
+                            <span>Diagnose</span>
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -254,6 +302,16 @@ export const DashboardMain: React.FC<DashboardMainProps> = ({
           </div>
         </div>
       </div>
+
+      <AIDiagnosisModal
+        isOpen={isDiagnosisOpen}
+        onClose={() => setIsDiagnosisOpen(false)}
+        monitorName={monitor.name}
+        diagnosis={diagnosisData}
+        loading={diagnosisLoading}
+        error={diagnosisError}
+        onReDiagnose={handleFetchDiagnosis}
+      />
     </main>
   );
 };

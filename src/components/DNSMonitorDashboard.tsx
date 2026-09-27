@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
-import { Monitor, DnsChainNode, DnsRecordItem, DnsTraceInfo } from '../types';
+import { Monitor, DnsChainNode, DnsRecordItem, DnsTraceInfo, AIDiagnosis } from '../types';
+import { AIDiagnosisModal } from './AIDiagnosisModal';
+import { Sparkles } from 'lucide-react';
 
 interface DnsMonitorDashboardProps {
     monitor: Monitor;
@@ -20,6 +22,30 @@ export const DnsMonitorDashboard: React.FC<DnsMonitorDashboardProps> = ({
     const [activeHoverNode, setActiveHoverNode] = useState<DnsChainNode | null>(null);
     const [selectedNodeModal, setSelectedNodeModal] = useState<DnsChainNode | null>(null);
     const [activeRecordFilter, setActiveRecordFilter] = useState<string>('ALL');
+    const [isDiagnosisOpen, setIsDiagnosisOpen] = useState(false);
+    const [diagnosisData, setDiagnosisData] = useState<AIDiagnosis | null>(null);
+    const [diagnosisLoading, setDiagnosisLoading] = useState(false);
+    const [diagnosisError, setDiagnosisError] = useState<string | null>(null);
+
+    const handleFetchDiagnosis = async () => {
+        setIsDiagnosisOpen(true);
+        setDiagnosisLoading(true);
+        setDiagnosisError(null);
+        try {
+            const idStr = String(monitor.id).replace('mon-', '');
+            const res = await fetch(`/api/monitors/${idStr}/ai-diagnosis`, { method: 'POST' });
+            if (!res.ok) {
+                const err = await res.json();
+                throw new Error(err.detail || 'Failed to fetch AI diagnosis');
+            }
+            const data = await res.json();
+            setDiagnosisData(data);
+        } catch (err: any) {
+            setDiagnosisError(err.message || 'Error generating AI diagnosis');
+        } finally {
+            setDiagnosisLoading(false);
+        }
+    };
 
     const domainName = monitor.url.replace(/^https?:\/\//, '').split('/')[0];
 
@@ -90,6 +116,18 @@ export const DnsMonitorDashboard: React.FC<DnsMonitorDashboardProps> = ({
 
                     {/* Action Header Buttons */}
                     <div className="flex items-center gap-2">
+                        {(monitor.status === 'down' || monitor.status === 'degraded') && (
+                            <button
+                                id="dns-ai-diagnosis-btn"
+                                onClick={handleFetchDiagnosis}
+                                className="h-9 px-3 rounded-md border border-amber-500/40 bg-gradient-to-r from-amber-500/20 to-rose-500/20 hover:from-amber-500/30 hover:to-rose-500/30 text-amber-300 hover:text-white transition-all flex items-center justify-center gap-1.5 text-xs font-mono-code flex-shrink-0 font-medium shadow-lg shadow-amber-500/10"
+                                title="Generate AI Outage Diagnosis"
+                            >
+                                <Sparkles className="w-4 h-4 text-amber-400 animate-pulse" />
+                                <span>AI Diagnosis</span>
+                            </button>
+                        )}
+
                         <button
                             id="dns-trace-btn"
                             onClick={handleTraceNow}
@@ -463,6 +501,16 @@ export const DnsMonitorDashboard: React.FC<DnsMonitorDashboardProps> = ({
                     </div>
                 </div>
             )}
+
+            <AIDiagnosisModal
+                isOpen={isDiagnosisOpen}
+                onClose={() => setIsDiagnosisOpen(false)}
+                monitorName={monitor.name}
+                diagnosis={diagnosisData}
+                loading={diagnosisLoading}
+                error={diagnosisError}
+                onReDiagnose={handleFetchDiagnosis}
+            />
         </main>
     );
 };

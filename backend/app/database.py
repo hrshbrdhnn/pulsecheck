@@ -176,6 +176,7 @@ class Heartbeat(Base):
     duration = Column(Integer, nullable=False, default=0)
     down_count = Column(Integer, nullable=False, default=0)
     is_ondemand = Column(Boolean, nullable=False, default=False)
+    ai_summary = Column(Text, nullable=True)
 
     # Relationships
     monitor = relationship("Monitor", back_populates="heartbeats")
@@ -188,6 +189,7 @@ class Notification(Base):
     description = Column(String(255), nullable=True)
     active = Column(Boolean, nullable=False, default=True)
     email = Column(String(255), nullable=False)
+    timestamp = Column(SafeDateTime, nullable=True, default=datetime.utcnow)
 
 class MonitorTlsInfo(Base):
     __tablename__ = 'monitor_tls_info'
@@ -195,6 +197,7 @@ class MonitorTlsInfo(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     monitor_id = Column(Integer, ForeignKey('monitor.id', ondelete='CASCADE'), nullable=False)
     info_json = Column(Text, nullable=True)
+    timestamp = Column(SafeDateTime, nullable=True, default=datetime.utcnow)
 
     # Relationships
     monitor = relationship("Monitor", back_populates="tls_info")
@@ -205,6 +208,7 @@ class ErrorTable(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     table_name = Column(Text, nullable=False)
     err_text = Column(Text, nullable=False)
+    timestamp = Column(SafeDateTime, nullable=True, default=datetime.utcnow)
 
 class AppConfig(Base):
     __tablename__ = 'app_config'
@@ -263,7 +267,8 @@ def init_db():
             "app_name": app_name,
             "support_email": support_email_val,
             "alert_from_email": alert_from_val,
-            "default_email_addresses": os.getenv("GLOBAL_ADMIN_EMAIL", "")
+            "default_email_addresses": os.getenv("GLOBAL_ADMIN_EMAIL", ""),
+            "gemini_api_key": os.getenv("GEMINI_API_KEY", "")
         }
         
         # Seed keys if they don't exist, or update them if they exist but are currently blank/empty
@@ -307,6 +312,10 @@ def init_db():
                 conn.execute(text("ALTER TABLE heartbeat ADD COLUMN is_ondemand BOOLEAN NOT NULL DEFAULT 0"))
                 conn.commit()
                 logger.info("Migrated SQLite database: added is_ondemand column to heartbeat table.")
+            if "ai_summary" not in hb_columns:
+                conn.execute(text("ALTER TABLE heartbeat ADD COLUMN ai_summary TEXT"))
+                conn.commit()
+                logger.info("Migrated SQLite database: added ai_summary column to heartbeat table.")
                 
             # Migrate monitor
             mon_columns = [row[1] for row in conn.execute(text("PRAGMA table_info(monitor)")).fetchall()]
@@ -342,5 +351,26 @@ def init_db():
                 conn.execute(text("ALTER TABLE monitor ADD COLUMN ssl_expiry_last_notified TEXT"))
                 conn.commit()
                 logger.info("Migrated SQLite database: added ssl_expiry_last_notified column to monitor table.")
+
+            # Migrate error
+            err_columns = [row[1] for row in conn.execute(text("PRAGMA table_info(error)")).fetchall()]
+            if err_columns and "timestamp" not in err_columns:
+                conn.execute(text("ALTER TABLE error ADD COLUMN timestamp TEXT"))
+                conn.commit()
+                logger.info("Migrated SQLite database: added timestamp column to error table.")
+
+            # Migrate monitor_tls_info
+            tls_columns = [row[1] for row in conn.execute(text("PRAGMA table_info(monitor_tls_info)")).fetchall()]
+            if tls_columns and "timestamp" not in tls_columns:
+                conn.execute(text("ALTER TABLE monitor_tls_info ADD COLUMN timestamp TEXT"))
+                conn.commit()
+                logger.info("Migrated SQLite database: added timestamp column to monitor_tls_info table.")
+
+            # Migrate notification
+            notif_columns = [row[1] for row in conn.execute(text("PRAGMA table_info(notification)")).fetchall()]
+            if notif_columns and "timestamp" not in notif_columns:
+                conn.execute(text("ALTER TABLE notification ADD COLUMN timestamp TEXT"))
+                conn.commit()
+                logger.info("Migrated SQLite database: added timestamp column to notification table.")
         except Exception as e:
             logger.error(f"Failed to auto-migrate database: {e}")

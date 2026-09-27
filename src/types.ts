@@ -2,6 +2,13 @@ export type MonitorType = 'HTTP(s)' | 'Ping' | 'Port' | 'Keyword' | 'SSL' | 'DNS
 export const ALL_MONITOR_TYPES: MonitorType[] = ['HTTP(s)', 'Ping', 'Port', 'Keyword', 'SSL', 'DNS'];
 export type MonitorStatus = 'up' | 'down' | 'degraded' | 'paused';
 
+export interface AIDiagnosis {
+  summary: string;
+  severity: 'CRITICAL' | 'WARNING' | 'INFO';
+  likely_causes: string[];
+  recommended_actions: string[];
+}
+
 export interface DnsChainNode {
   id: string;
   level: 'Root Server' | 'TLD Server' | 'Authoritative NS' | 'Resolved Answer';

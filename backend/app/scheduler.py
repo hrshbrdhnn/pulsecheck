@@ -414,8 +414,9 @@ async def fetch_tls_once_if_needed(monitor_id: int):
             existing = db.query(MonitorTlsInfo).filter(MonitorTlsInfo.monitor_id == monitor_id).first()
             if existing:
                 existing.info_json = json.dumps(res)
+                existing.timestamp = datetime.utcnow()
             else:
-                new_info = MonitorTlsInfo(monitor_id=monitor_id, info_json=json.dumps(res))
+                new_info = MonitorTlsInfo(monitor_id=monitor_id, info_json=json.dumps(res), timestamp=datetime.utcnow())
                 db.add(new_info)
             db.commit()
             
@@ -449,8 +450,9 @@ async def tls_fetcher_loop():
                     existing = db.query(MonitorTlsInfo).filter(MonitorTlsInfo.monitor_id == monitor.id).first()
                     if existing:
                         existing.info_json = json.dumps(res)
+                        existing.timestamp = datetime.utcnow()
                     else:
-                        new_info = MonitorTlsInfo(monitor_id=monitor.id, info_json=json.dumps(res))
+                        new_info = MonitorTlsInfo(monitor_id=monitor.id, info_json=json.dumps(res), timestamp=datetime.utcnow())
                         db.add(new_info)
                     db.commit()
                     

@@ -169,7 +169,8 @@ def get_monitor(monitor_id: int, db: Session = Depends(get_db)):
     tls_dict = {
         "id": tls_info.id,
         "monitor_id": tls_info.monitor_id,
-        "info_json": tls_info.info_json
+        "info_json": tls_info.info_json,
+        "timestamp": tls_info.timestamp.isoformat() if tls_info and tls_info.timestamp else None
     } if tls_info else None
     
     return {"monitor": monitor_dict, "monitorCertificate": tls_dict}
@@ -525,6 +526,7 @@ class ConfigUpdate(BaseModel):
     support_email: Optional[str] = None
     alert_from_email: Optional[str] = None
     default_email_addresses: Optional[str] = None
+    gemini_api_key: Optional[str] = None
 
 @app.get("/api/config")
 def get_config(db: Session = Depends(get_db)):
@@ -532,18 +534,21 @@ def get_config(db: Session = Depends(get_db)):
     support_email = db.query(AppConfig).filter(AppConfig.key == "support_email").first()
     alert_from_email = db.query(AppConfig).filter(AppConfig.key == "alert_from_email").first()
     default_email_addresses = db.query(AppConfig).filter(AppConfig.key == "default_email_addresses").first()
+    gemini_api_key = db.query(AppConfig).filter(AppConfig.key == "gemini_api_key").first()
     
     # Resolve fallback from env
     env_app_name = os.getenv("APP_NAME", "")
     env_support_email = os.getenv("SUPPORT_EMAIL", "")
     env_alert_from_email = os.getenv("ALERT_FROM_EMAIL", f"Alert <alert@{env_support_email.split('@')[-1]}>" if '@' in env_support_email else "Alert <alert@localhost>")
     env_global_email = os.getenv("GLOBAL_ADMIN_EMAIL", "")
+    env_gemini_key = os.getenv("GEMINI_API_KEY", "")
 
     return {
         "app_name": app_name.value if app_name and app_name.value else env_app_name,
         "support_email": support_email.value if support_email and support_email.value else env_support_email,
         "alert_from_email": alert_from_email.value if alert_from_email and alert_from_email.value else env_alert_from_email,
-        "default_email_addresses": default_email_addresses.value if default_email_addresses and default_email_addresses.value else env_global_email
+        "default_email_addresses": default_email_addresses.value if default_email_addresses and default_email_addresses.value else env_global_email,
+        "gemini_api_key": gemini_api_key.value if gemini_api_key and gemini_api_key.value else env_gemini_key
     }
 
 @app.put("/api/config")
@@ -575,9 +580,85 @@ def update_config(payload: ConfigUpdate, db: Session = Depends(get_db)):
             row.value = payload.default_email_addresses.strip()
         else:
             db.add(AppConfig(key="default_email_addresses", value=payload.default_email_addresses.strip()))
+
+    if payload.gemini_api_key is not None:
+        row = db.query(AppConfig).filter(AppConfig.key == "gemini_api_key").first()
+        if row:
+            row.value = payload.gemini_api_key.strip()
+        else:
+            db.add(AppConfig(key="gemini_api_key", value=payload.gemini_api_key.strip()))
             
     db.commit()
     return {"status": "ok"}
+
+@app.post("/api/monitors/{monitor_id}/ai-diagnosis")
+def get_ai_diagnosis(monitor_id: str, db: Session = Depends(get_db)):
+    try:
+        numeric_id = int(str(monitor_id).replace("mon-", "").strip())
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"Invalid monitor ID format: {monitor_id}")
+
+    monitor = db.query(Monitor).filter(Monitor.id == numeric_id).first()
+    if not monitor:
+        raise HTTPException(status_code=404, detail="Monitor not found")
+        
+    latest_heartbeat = db.query(Heartbeat).filter(
+        Heartbeat.monitor_id == numeric_id
+    ).order_by(Heartbeat.id.desc()).first()
+    
+    if not latest_heartbeat:
+        raise HTTPException(status_code=400, detail="No heartbeat data available for diagnosis")
+
+    # If diagnosis is already generated and cached on the heartbeat, return cached
+    if latest_heartbeat.ai_summary:
+        try:
+            return json.loads(latest_heartbeat.ai_summary)
+        except Exception:
+            pass
+
+    # Retrieve TLS info if applicable
+    tls_info = None
+    if monitor.type in ('http', 'keyword', 'ssl'):
+        tls_row = db.query(MonitorTlsInfo).filter(MonitorTlsInfo.monitor_id == numeric_id).first()
+        if tls_row and tls_row.info_json:
+            try:
+                tls_info = json.loads(tls_row.info_json)
+            except Exception:
+                pass
+
+    # Resolve gemini_api_key from AppConfig or env
+    gemini_key_row = db.query(AppConfig).filter(AppConfig.key == "gemini_api_key").first()
+    gemini_key = (gemini_key_row.value if gemini_key_row and gemini_key_row.value else os.getenv("GEMINI_API_KEY", "")).strip()
+
+    from .ai_diagnoser import generate_ai_diagnosis
+    
+    monitor_dict = {
+        "id": monitor.id,
+        "name": monitor.name,
+        "type": monitor.type,
+        "url": monitor.url,
+        "port": monitor.port,
+        "keyword": monitor.keyword,
+        "timeout": monitor.timeout
+    }
+    
+    heartbeat_dict = {
+        "status": latest_heartbeat.status,
+        "msg": latest_heartbeat.msg,
+        "ping": latest_heartbeat.ping,
+        "time": latest_heartbeat.time.isoformat() if latest_heartbeat.time else None
+    }
+    
+    diagnosis = generate_ai_diagnosis(monitor_dict, heartbeat_dict, tls_info, gemini_key)
+
+    # Cache diagnosis on the heartbeat row
+    try:
+        latest_heartbeat.ai_summary = json.dumps(diagnosis)
+        db.commit()
+    except Exception as e:
+        print(f"Failed to cache AI diagnosis to heartbeat: {e}")
+
+    return diagnosis
 
 @app.get("/api/public-status")
 def get_public_status(db: Session = Depends(get_db)):

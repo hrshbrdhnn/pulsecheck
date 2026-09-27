@@ -229,10 +229,9 @@ def mail_template(monitor_status: str, monitor_name: str, monitor_url: str, moni
                 <div class="email-container">
                     <div class="brand-header">
                         <div class="brand-logo" style="display: flex; align-items: center; gap: 8px;">
-                            <img src="https://raw.githubusercontent.com/hrshbrdhnn/pulsecheck/master/public/logo.png" width="24" height="24" style="vertical-align: middle; border: 0;" alt="Logo" />
+                            <img src="https://res.cloudinary.com/db1gjahs1/image/upload/v1790410348/logo_kxhxhk.svg" width="24" height="24" style="vertical-align: middle; border: 0;" alt="Logo" />
                             <span>{app_name}</span>
                         </div>
-                        <div class="{status_class}">{monitor_status}</div>
                     </div>
 
                     <h2>Monitor Status Alert</h2>
@@ -488,7 +487,7 @@ def ssl_expiry_mail_template(monitor_name: str, monitor_url: str, days_left: int
                 <div class="email-container">
                     <div class="brand-header">
                         <div class="brand-logo" style="display: flex; align-items: center; gap: 8px;">
-                            <img src="https://raw.githubusercontent.com/hrshbrdhnn/pulsecheck/master/public/logo.png" width="24" height="24" style="vertical-align: middle; border: 0;" alt="Logo" />
+                            <img src="https://res.cloudinary.com/db1gjahs1/image/upload/v1790410348/logo_kxhxhk.svg" width="24" height="24" style="vertical-align: middle; border: 0;" alt="Logo" />
                             <span>{app_name}</span>
                         </div>
                         <div class="status-badge">SSL WARNING</div>

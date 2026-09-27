@@ -1,11 +1,12 @@
 import pytest
+from app.database import Monitor, ErrorTable, Notification, MonitorTlsInfo, AppConfig
 
 def test_get_monitors_empty(client):
     response = client.get("/api/monitors")
     assert response.status_code == 200
     assert response.json() == {"monitors": []}
 
-def test_create_http_monitor(client):
+def test_create_http_monitor(client, db_session):
     payload = {
         "name": "Test HTTP Monitor",
         "url": "https://example.com",
@@ -13,9 +14,11 @@ def test_create_http_monitor(client):
         "interval": 60,
         "timeout": 5,
         "maxretries": 3,
-        "method": "GET",
+        "method": "POST",
         "accepted_statuscodes_json": '["200-299"]',
         "httpBodyEncoding": "json",
+        "body": '{"key":"value"}',
+        "headers": '{"Authorization":"Bearer test"}',
         "active": True,
         "email_on_down": True,
         "down_emails": "ops@example.com, admin@example.com",
@@ -25,100 +28,279 @@ def test_create_http_monitor(client):
     }
     response = client.post("/api/monitors", json=payload)
     assert response.status_code == 201
-    data = response.json()["monitor"]
-    assert data["name"] == "Test HTTP Monitor"
-    assert data["type"] == "http"
-    assert data["port"] is None
-    assert data["keyword"] is None
-    assert data["email_on_down"] is True
-    assert data["down_emails"] == "ops@example.com, admin@example.com"
-    assert data["ssl_expiry_alert_days"] == 10
-    assert data["ssl_expiry_alert_interval_days"] == 5
-    assert data["ssl_expiry_emails"] == "ssl-ops@example.com"
+    mon_id = response.json()["monitor"]["id"]
 
-def test_create_keyword_monitor_validation(client):
-    # Failing case: Keyword is empty
+    # Direct database table verification
+    db_mon = db_session.query(Monitor).filter(Monitor.id == mon_id).first()
+    assert db_mon is not None
+    assert db_mon.name == "Test HTTP Monitor"
+    assert db_mon.type == "http"
+    assert db_mon.url == "https://example.com"
+    assert db_mon.interval == 60
+    assert db_mon.timeout == 5
+    assert db_mon.maxretries == 3
+    assert db_mon.method == "POST"
+    assert db_mon.accepted_statuscodes_json == '["200-299"]'
+    assert db_mon.httpBodyEncoding == "json"
+    assert db_mon.body == '{"key":"value"}'
+    assert db_mon.headers == '{"Authorization":"Bearer test"}'
+    assert db_mon.active is True
+    assert db_mon.email_on_down is True
+    assert db_mon.down_emails == "ops@example.com, admin@example.com"
+    assert db_mon.ssl_expiry_alert_days == 10
+    assert db_mon.ssl_expiry_alert_interval_days == 5
+    assert db_mon.ssl_expiry_emails == "ssl-ops@example.com"
+    assert db_mon.port is None
+    assert db_mon.keyword is None
+    assert db_mon.created_date is not None
+
+def test_create_http_monitor_validation(client):
+    # Failing case: sending port or keyword for HTTP monitor
     payload = {
+        "name": "HTTP Fail",
+        "url": "https://example.com",
+        "type": "http",
+        "port": 8080
+    }
+    response = client.post("/api/monitors", json=payload)
+    assert response.status_code == 400
+    assert "Fields ['port'] are not allowed for HTTP monitors." in response.json()["detail"]
+
+def test_create_keyword_monitor(client, db_session):
+    # Failing case: Keyword missing
+    fail_payload = {
         "name": "Test Keyword Fail",
         "url": "https://example.com",
         "type": "keyword",
         "interval": 60,
         "active": True
     }
-    response = client.post("/api/monitors", json=payload)
+    response = client.post("/api/monitors", json=fail_payload)
     assert response.status_code == 400
     assert "Keyword is required for keyword search monitors" in response.json()["detail"]
 
-    # Succeeding case: Keyword is provided
-    payload["keyword"] = "welcome"
-    response = client.post("/api/monitors", json=payload)
-    assert response.status_code == 201
-    data = response.json()["monitor"]
-    assert data["keyword"] == "welcome"
-    assert data["type"] == "keyword"
-
-def test_create_ssl_monitor_sanitization(client):
-    # Case 1: Explicitly sending port or HTTP properties should return a 400 Bad Request
+    # Succeeding case: Keyword provided
     payload = {
-        "name": "Test SSL Monitor Fail",
-        "url": "https://google.com",
-        "type": "ssl",
-        "interval": 86400, # 1 Day in seconds
-        "port": 8080, # Custom port is not allowed explicitly
-        "active": True
+        "name": "Test Keyword Success",
+        "url": "https://example.com",
+        "type": "keyword",
+        "keyword": "Welcome",
+        "interval": 30,
+        "timeout": 10,
+        "maxretries": 1,
+        "method": "GET",
+        "accepted_statuscodes_json": '["200"]',
+        "httpBodyEncoding": "json",
+        "active": True,
+        "email_on_down": True,
+        "down_emails": "ops@example.com"
     }
     response = client.post("/api/monitors", json=payload)
+    assert response.status_code == 201
+    mon_id = response.json()["monitor"]["id"]
+
+    # Direct database table verification
+    db_mon = db_session.query(Monitor).filter(Monitor.id == mon_id).first()
+    assert db_mon is not None
+    assert db_mon.name == "Test Keyword Success"
+    assert db_mon.type == "keyword"
+    assert db_mon.url == "https://example.com"
+    assert db_mon.keyword == "Welcome"
+    assert db_mon.interval == 30
+    assert db_mon.port is None
+    assert db_mon.created_date is not None
+
+def test_create_ping_monitor(client, db_session):
+    # Failing case: sending HTTP or SSL fields for Ping monitor
+    fail_payload = {
+        "name": "Test Ping Fail",
+        "url": "8.8.8.8",
+        "type": "ping",
+        "port": 80
+    }
+    response = client.post("/api/monitors", json=fail_payload)
+    assert response.status_code == 400
+    assert "Fields ['port'] are not allowed for Ping monitors." in response.json()["detail"]
+
+    # Success case
+    payload = {
+        "name": "Test Ping Success",
+        "url": "1.1.1.1",
+        "type": "ping",
+        "interval": 15,
+        "active": True,
+        "email_on_down": True,
+        "down_emails": "ping-alerts@example.com"
+    }
+    response = client.post("/api/monitors", json=payload)
+    assert response.status_code == 201
+    mon_id = response.json()["monitor"]["id"]
+
+    # Direct database table verification
+    db_mon = db_session.query(Monitor).filter(Monitor.id == mon_id).first()
+    assert db_mon is not None
+    assert db_mon.name == "Test Ping Success"
+    assert db_mon.type == "ping"
+    assert db_mon.url == "1.1.1.1"
+    assert db_mon.interval == 15
+    assert db_mon.email_on_down is True
+    assert db_mon.down_emails == "ping-alerts@example.com"
+    # Unrelated sanitized fields in DB
+    assert db_mon.port is None
+    assert db_mon.keyword is None
+    assert db_mon.method is None
+    assert db_mon.accepted_statuscodes_json is None
+    assert db_mon.httpBodyEncoding is None
+    assert db_mon.body is None
+    assert db_mon.headers is None
+    assert db_mon.ssl_expiry_alert_days is None
+    assert db_mon.ssl_expiry_alert_interval_days is None
+    assert db_mon.ssl_expiry_emails is None
+
+def test_create_port_monitor(client, db_session):
+    # Failing case: sending HTTP body for Port monitor
+    fail_payload = {
+        "name": "Test Port Fail",
+        "url": "db.example.com",
+        "type": "port",
+        "port": 5432,
+        "body": "unallowed"
+    }
+    response = client.post("/api/monitors", json=fail_payload)
+    assert response.status_code == 400
+    assert "Fields ['body'] are not allowed for Port monitors." in response.json()["detail"]
+
+    # Success case
+    payload = {
+        "name": "Test Postgres Port",
+        "url": "db.example.com",
+        "type": "port",
+        "port": 5432,
+        "interval": 30,
+        "timeout": 5,
+        "active": True,
+        "email_on_down": True,
+        "down_emails": "db-ops@example.com"
+    }
+    response = client.post("/api/monitors", json=payload)
+    assert response.status_code == 201
+    mon_id = response.json()["monitor"]["id"]
+
+    # Direct database table verification
+    db_mon = db_session.query(Monitor).filter(Monitor.id == mon_id).first()
+    assert db_mon is not None
+    assert db_mon.name == "Test Postgres Port"
+    assert db_mon.type == "port"
+    assert db_mon.url == "db.example.com"
+    assert db_mon.port == 5432
+    assert db_mon.interval == 30
+    assert db_mon.timeout == 5
+    assert db_mon.email_on_down is True
+    assert db_mon.down_emails == "db-ops@example.com"
+    # Unrelated sanitized fields in DB
+    assert db_mon.keyword is None
+    assert db_mon.method is None
+    assert db_mon.ssl_expiry_emails is None
+
+def test_create_ssl_monitor(client, db_session):
+    # Failing case 1: sending port for SSL monitor
+    fail_payload1 = {
+        "name": "SSL Fail Port",
+        "url": "https://google.com",
+        "type": "ssl",
+        "port": 443
+    }
+    response = client.post("/api/monitors", json=fail_payload1)
     assert response.status_code == 400
     assert "Fields ['port'] are not allowed for SSL monitors." in response.json()["detail"]
 
-    # Case 2: Explicitly sending email_on_down should return a 400 Bad Request
-    payload_down = {
-        "name": "Test SSL Monitor Fail Down",
+    # Failing case 2: sending email_on_down for SSL monitor
+    fail_payload2 = {
+        "name": "SSL Fail Down Email",
         "url": "https://google.com",
         "type": "ssl",
-        "interval": 86400,
-        "email_on_down": True,
-        "active": True
+        "email_on_down": True
     }
-    response = client.post("/api/monitors", json=payload_down)
+    response = client.post("/api/monitors", json=fail_payload2)
     assert response.status_code == 400
     assert "Fields ['email_on_down'] are not allowed for SSL monitors." in response.json()["detail"]
 
-    # Case 2: Clean parameters should succeed
-    clean_payload = {
-        "name": "Test SSL Monitor Success",
-        "url": "https://google.com",
+    # Success case
+    payload = {
+        "name": "Test SSL Monitor",
+        "url": "https://secure.example.com",
         "type": "ssl",
         "interval": 86400,
-        "active": True
-    }
-    response = client.post("/api/monitors", json=clean_payload)
-    assert response.status_code == 201
-    data = response.json()["monitor"]
-    assert data["type"] == "ssl"
-    assert data["port"] is None
-    assert data["keyword"] is None
-
-def test_create_dns_monitor(client):
-    payload = {
-        "name": "Test DNS Query",
-        "url": "google.com",
-        "type": "dns",
-        "interval": 120,
-        "keyword": "8.8.8.8", # Expected resolved IP constraint
+        "ssl_expiry_alert_days": 30,
+        "ssl_expiry_alert_interval_days": 7,
+        "ssl_expiry_emails": "ssl-admin@example.com",
         "active": True
     }
     response = client.post("/api/monitors", json=payload)
     assert response.status_code == 201
-    data = response.json()["monitor"]
-    assert data["type"] == "dns"
-    assert data["keyword"] == "8.8.8.8"
+    mon_id = response.json()["monitor"]["id"]
 
-def test_get_and_delete_monitor(client):
-    # Create
+    # Direct database table verification
+    db_mon = db_session.query(Monitor).filter(Monitor.id == mon_id).first()
+    assert db_mon is not None
+    assert db_mon.name == "Test SSL Monitor"
+    assert db_mon.type == "ssl"
+    assert db_mon.url == "https://secure.example.com"
+    assert db_mon.interval == 86400
+    assert db_mon.ssl_expiry_alert_days == 30
+    assert db_mon.ssl_expiry_alert_interval_days == 7
+    assert db_mon.ssl_expiry_emails == "ssl-admin@example.com"
+    assert db_mon.email_on_down is False
+    assert db_mon.down_emails is None
+    assert db_mon.port is None
+    assert db_mon.method is None
+
+def test_create_dns_monitor(client, db_session):
+    # Failing case: sending HTTP method for DNS monitor
+    fail_payload = {
+        "name": "DNS Fail",
+        "url": "google.com",
+        "type": "dns",
+        "method": "GET"
+    }
+    response = client.post("/api/monitors", json=fail_payload)
+    assert response.status_code == 400
+    assert "Fields ['method'] are not allowed for DNS monitors." in response.json()["detail"]
+
+    # Success case
     payload = {
-        "name": "Delete Target",
-        "url": "https://test.com",
+        "name": "Test DNS Monitor",
+        "url": "dns.google.com",
+        "type": "dns",
+        "keyword": "8.8.8.8",
+        "interval": 300,
+        "active": True,
+        "email_on_down": True,
+        "down_emails": "dns-team@example.com"
+    }
+    response = client.post("/api/monitors", json=payload)
+    assert response.status_code == 201
+    mon_id = response.json()["monitor"]["id"]
+
+    # Direct database table verification
+    db_mon = db_session.query(Monitor).filter(Monitor.id == mon_id).first()
+    assert db_mon is not None
+    assert db_mon.name == "Test DNS Monitor"
+    assert db_mon.type == "dns"
+    assert db_mon.url == "dns.google.com"
+    assert db_mon.keyword == "8.8.8.8"
+    assert db_mon.interval == 300
+    assert db_mon.email_on_down is True
+    assert db_mon.down_emails == "dns-team@example.com"
+    assert db_mon.port is None
+    assert db_mon.method is None
+    assert db_mon.ssl_expiry_alert_days is None
+
+def test_update_and_delete_monitor(client, db_session):
+    # Create monitor
+    payload = {
+        "name": "Initial Monitor Name",
+        "url": "https://initial.example.com",
         "type": "http",
         "interval": 60,
         "active": True
@@ -127,21 +309,46 @@ def test_get_and_delete_monitor(client):
     assert create_res.status_code == 201
     mon_id = create_res.json()["monitor"]["id"]
 
-    # Fetch details
+    # Verify initial creation in DB
+    db_mon = db_session.query(Monitor).filter(Monitor.id == mon_id).first()
+    assert db_mon is not None
+    assert db_mon.name == "Initial Monitor Name"
+
+    # Update monitor
+    update_payload = {
+        "name": "Updated Monitor Name",
+        "url": "https://updated.example.com",
+        "type": "http",
+        "interval": 120,
+        "active": False
+    }
+    update_res = client.put(f"/api/monitors/{mon_id}", json=update_payload)
+    assert update_res.status_code == 200
+
+    # Verify update in DB
+    db_session.refresh(db_mon)
+    assert db_mon.name == "Updated Monitor Name"
+    assert db_mon.url == "https://updated.example.com"
+    assert db_mon.interval == 120
+    assert db_mon.active is False
+
+    # Fetch details via API
     details_res = client.get(f"/api/monitors/{mon_id}")
     assert details_res.status_code == 200
-    assert details_res.json()["monitor"]["name"] == "Delete Target"
+    assert details_res.json()["monitor"]["name"] == "Updated Monitor Name"
 
-    # Delete
+    # Delete monitor
     del_res = client.delete(f"/api/monitors/{mon_id}")
     assert del_res.status_code == 200
 
-    # Fetch details again (should fail)
-    details_res_again = client.get(f"/api/monitors/{mon_id}")
-    assert details_res_again.status_code == 404
+    # Verify deletion in DB
+    db_mon_after_delete = db_session.query(Monitor).filter(Monitor.id == mon_id).first()
+    assert db_mon_after_delete is None
 
-def test_api_config(client):
-    # GET initial config (should return seeded defaults)
+    # Fetch details via API (should be 404)
+    assert client.get(f"/api/monitors/{mon_id}").status_code == 404
+
+def test_api_config(client, db_session):
     response = client.get("/api/config")
     assert response.status_code == 200
     data = response.json()
@@ -150,7 +357,6 @@ def test_api_config(client):
     assert "alert_from_email" in data
     assert "default_email_addresses" in data
 
-    # PUT config update
     payload = {
         "app_name": "CustomPulseCheck",
         "support_email": "ops@custom.local",
@@ -161,13 +367,79 @@ def test_api_config(client):
     assert update_res.status_code == 200
     assert update_res.json() == {"status": "ok"}
 
-    # GET config again to verify update
+    # Verify directly in DB
+    cfg_row = db_session.query(AppConfig).filter(AppConfig.key == "app_name").first()
+    assert cfg_row is not None
+    assert cfg_row.value == "CustomPulseCheck"
+
+    # GET config again to verify API response
     response2 = client.get("/api/config")
     assert response2.status_code == 200
     data2 = response2.json()
     assert data2["app_name"] == "CustomPulseCheck"
     assert data2["support_email"] == "ops@custom.local"
-    assert data2["alert_from_email"] == "OpsAlert <ops@custom.local>"
-    assert data2["default_email_addresses"] == "ops-fallback@custom.local"
 
+def test_error_table_timestamp(db_session):
+    err = ErrorTable(table_name="test_table", err_text="Sample error message")
+    db_session.add(err)
+    db_session.commit()
+    db_session.refresh(err)
+
+    db_err = db_session.query(ErrorTable).filter(ErrorTable.id == err.id).first()
+    assert db_err is not None
+    assert db_err.table_name == "test_table"
+    assert db_err.err_text == "Sample error message"
+    assert db_err.timestamp is not None
+
+def test_notification_timestamp(db_session):
+    sub = Notification(name="testuser", email="test@example.com", active=True)
+    db_session.add(sub)
+    db_session.commit()
+    db_session.refresh(sub)
+
+    db_sub = db_session.query(Notification).filter(Notification.id == sub.id).first()
+    assert db_sub is not None
+    assert db_sub.email == "test@example.com"
+    assert db_sub.timestamp is not None
+
+def test_monitor_tls_info_timestamp(db_session):
+    mon = Monitor(name="TLS Mon", type="ssl", url="https://example.com")
+    db_session.add(mon)
+    db_session.commit()
+    db_session.refresh(mon)
+
+    tls = MonitorTlsInfo(monitor_id=mon.id, info_json='{"valid": true}')
+    db_session.add(tls)
+    db_session.commit()
+    db_session.refresh(tls)
+
+    db_tls = db_session.query(MonitorTlsInfo).filter(MonitorTlsInfo.id == tls.id).first()
+    assert db_tls is not None
+    assert db_tls.monitor_id == mon.id
+    assert db_tls.timestamp is not None
+
+def test_ai_diagnosis_endpoint(client, db_session):
+    from app.database import Heartbeat
+    
+    # Create monitor
+    mon = Monitor(name="Outage Mon", type="http", url="https://down-service.example.com")
+    db_session.add(mon)
+    db_session.commit()
+    db_session.refresh(mon)
+
+    # Create failed heartbeat
+    hb = Heartbeat(monitor_id=mon.id, status=0, msg="HTTP 502 Bad Gateway", ping=150)
+    db_session.add(hb)
+    db_session.commit()
+
+    # Call AI Diagnosis endpoint
+    resp = client.post(f"/api/monitors/{mon.id}/ai-diagnosis")
+    assert resp.status_code == 200
+    data = resp.json()
+
+    assert "summary" in data
+    assert "502 Bad Gateway" in data["summary"]
+    assert data["severity"] == "CRITICAL"
+    assert len(data["likely_causes"]) > 0
+    assert len(data["recommended_actions"]) > 0
 

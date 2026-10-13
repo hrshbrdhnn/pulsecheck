@@ -145,7 +145,3 @@ DB_NAME=pulsecheck
 
 ## TODO
 - [ ] Test every scenario thoroughly. Especially related to environment file, global config table and email notification.
-- [ ] Review Database Schema.
-- [ ] Work on other types of notification integration.
-- [ ] Work on other types of monitoring integration.
-- [ ] Check for responsiveness.
